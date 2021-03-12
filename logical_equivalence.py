@@ -350,7 +350,7 @@ def walk_down_expression_evaluation(expression):
         atom_values = {}
         for i, atom in enumerate(unique_atoms):
             atom_values[atom] = truth_value_permutation[i]
-        all_permutations_of_atom_values.append(atom_values)
+        all_permutations_of_atom_values.append(atom_values) # ok
 
     #for atom_value_permutations
         # evalue the expression but set each atom value to the matching bool in the diction
