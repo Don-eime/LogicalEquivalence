@@ -60,30 +60,72 @@ class TestExpression(TestCase):
 
 
 class TestLawsOfEquivalence(TestCase):
-    def __init__(self):
+    def setUp(self) -> None:
         self.p = Atom('p')
         self.q = Atom('q')
         self.r = Atom('r')
 
+        self.p_and_q = Expression(conjunction, self.p, self.q)
+        self.q_and_p = Expression(conjunction, self.q, self.p)
+        self.q_and_r = Expression(conjunction, self.q, self.r)
+
+        self.p_or_q = Expression(disjunction, self.p, self.q)
+        self.q_or_p = Expression(disjunction, self.q, self.p)
+        self.q_or_r = Expression(disjunction, self.q, self.r)
 
     def test_commutative_law(self):
-        p_and_q = Expression(conjunction, self.p, self.q)
-        q_and_p = Expression(conjunction, self.q, self.p)
-
-        self.assertEqual(commutative_law(p_and_q), q_and_p)
-        self.assertEqual(commutative_law(q_and_p), p_and_q)
+        self.assertEqual(commutative_law(self.p_and_q).symbol, self.q_and_p.symbol)
+        self.assertEqual(commutative_law(self.q_and_p).symbol, self.p_and_q.symbol)
 
     def test_associative_law(self):
-        assert False
+        associative_test_expression_AND = Expression(conjunction, self.p_and_q, self.r)
+        associative_equiv_AND = Expression(conjunction, self.p, self.q_and_r)
+        self.assertEqual(associative_law(associative_test_expression_AND), associative_equiv_AND)
+
+        associative_test_expression_OR = Expression(disjunction, self.p_or_q, self.r)
+        associative_equiv_OR = Expression(disjunction, self.p, self.q_or_r)
+        self.assertEqual(associative_law(associative_test_expression_OR), associative_equiv_OR)
 
     def test_distributive_law(self):
-        assert False
+        distributive_test_exp = Expression(conjunction, self.p,
+                                           Expression(disjunction, self.q, self.r))
+        out = Expression(disjunction,
+                         Expression(conjunction, self.p, self.q),
+                         Expression(conjunction, self.p, self.r))
+
+        self.assertEqual(distributive_test_exp(distributive_test_exp), out)
+
+        distributive_test_exp = Expression(disjunction, self.p,
+                                           Expression(conjunction, self.q, self.r))
+        out = Expression(conjunction,
+                         Expression(disjunction(), self.p, self.q),
+                         Expression(disjunction(), self.p, self.r))
+
+        self.assertEqual(distributive_test_exp(distributive_test_exp), out)
+
+
 
     def test_reverse_distributive_law(self):
-        assert False
+        or_in = Expression(disjunction,
+                         Expression(conjunction, self.p, self.q),
+                         Expression(conjunction, self.p, self.r))
+
+        or_out = Expression(conjunction, self.p,
+                                           Expression(disjunction, self.q, self.r))
+
+        self.assertEqual(reverse_distributive_law(or_in), or_out)
+
+        and_in = Expression(conjunction,
+                   Expression(disjunction(), self.p, self.q),
+                   Expression(disjunction(), self.p, self.r))
+
+        and_out = Expression(disjunction, self.p,
+                                           Expression(conjunction(), self.q, self.r))
+
+        self.assertEqual(reverse_distributive_law(and_in), and_out)
 
     def test_identity_law(self):
-        assert False
+        pass
 
     def test_negation_law(self):
         assert False

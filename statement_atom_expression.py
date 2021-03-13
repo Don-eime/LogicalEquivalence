@@ -65,7 +65,13 @@ class Expression(Statement):
     def truth_table(self):
         return truth_table_of(self)
 
+    @property
+    def is_tautology(self):
+        return #(False not in self.truth_table.values())
 
+    @property
+    def is_contradiction(self):
+        return #(True not in self.truth_table.values())
 # UTIL FUNCTIONS
 
 def comprised_atomic_symbols(statement):
@@ -241,6 +247,7 @@ def negation_of_contradiction():
 
 
 # MAIN
+# TODO impliment tautology and
 
 def main():
     p = Atom('p')
@@ -254,9 +261,12 @@ def main():
 
     not_p_in_pqT_space = not_p.value(pq_True_space)
 
-    p_and_q = Expression(conjunction, Atom('p'), Atom('q'))
     p_or_r = Expression(disjunction, Atom('p'), Atom('r'))
 
+    p_and_q = Expression(conjunction, p, q)
+    q_and_p = Expression(conjunction, q, p)
+
+    print(commutative_law(p_and_q).symbol)
 
 
 if __name__ == 'main':
