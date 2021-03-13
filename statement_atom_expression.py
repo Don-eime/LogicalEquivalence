@@ -1,6 +1,6 @@
 import itertools
 from collections import Callable
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from functional_connjectives_with_atom_space_dict import negation, conjunction, disjunction
 
@@ -65,6 +65,9 @@ class Expression(Statement):
     def truth_table(self):
         return truth_table_of(self)
 
+
+# UTIL FUNCTIONS
+
 def comprised_atomic_symbols(statement):
     if not statement:
         return []
@@ -94,14 +97,14 @@ def truth_table_of(expression):
         expression_value = expression.value(atom_space)
         truth_table.append((atom_space, expression_value))
 
+    return truth_table
 
-# EVALUATION
+
 def evaluate_connective_in_atom_space(connective: Callable, atom_space: dict, keys: tuple):
     statement_values = tuple(atom_space[key] for key in keys)
     return connective(statement_values)
 
 
-# UTIL FUNCTIONS
 def symbolic_representation_of_expression(expression: Expression):
     """ Given an expression, returns the symbolic representation of it.
                     e.g '(p ∧ q)' or '~p' or '(p ∧ q) ∧ r'
@@ -118,34 +121,126 @@ def symbolic_representation_of_expression(expression: Expression):
 
     return symbolic_representation
 
-def truth_value_permutations(unique_atoms):
-    atom_count = len(unique_atoms)
-    rows = 2 ** atom_count
-
-    columns = []
-    row_number_divisor = 0.5
-    atom_index = 0
-    while atom_index <  atom_count - 1:
-        row_values = [True] * int(rows * row_number_divisor) + [False] * int(rows * row_number_divisor)
-        columns.append(row_values)
-        row_number_divisor *= row_number_divisor
-        atom_index += 1
-
-    singleton_row = [True, False] * int(rows / 2)
-    columns.append(singleton_row)
-    return columns
 
 def permutations_of_atom_values(atoms):
     """Given a set of atoms, returns a list with all possible combinations of their True/False values"""
     atom_count = len(atoms)
 
-    unique_true_false_combinations = [[True]*i + [False]*(atom_count-i) for i in range(0,atom_count+1)]
+    unique_true_false_combinations = [[True] * i + [False] * (atom_count - i) for i in range(0, atom_count + 1)]
     all_permutations = []
     for combination in unique_true_false_combinations:
         permutations = set(itertools.permutations(combination))
         all_permutations.extend(permutations)
 
     return all_permutations
+
+
+# LAWS OF LOGICAL EQUIVALENCE
+class Tautology():
+    pass
+
+
+class Contradiction:
+    pass
+
+
+def junction_opposite(junction: Union[conjunction, disjunction]) -> Union[conjunction, disjunction]:
+    """ Returns conjunction if given disjunction and vice-versa"""
+    if junction == conjunction:
+        return disjunction
+    elif junction == disjunction:
+        return conjunction
+    else:
+        raise ValueError('junction_opposite() must be passed either a conjunction or disjunction')
+
+
+def commutative_law(expression: Expression):
+    return Expression(expression.connective, expression.statement_2, expression.statement_1)
+
+
+def associative_law(expression: Expression):
+    """ Returns p AND (q AND r) given (p AND q) AND r"""
+    new_left = Expression(expression.connective,
+                          expression.statement_1,  # p
+                          expression.statement_2.statement_1)  # q
+
+    new_right = expression.statement_2.statement_2  # r
+
+    return Expression(expression.connective, new_left, new_right)
+
+
+def distributive_law(expression: Expression):
+    new_left_side = Expression(expression.connective, expression.statement_1,
+                               expression.statement_2.statement_1)
+    new_right_side = Expression(expression.connective, expression.statement_1,
+                                expression.statement_2.statement_2)
+
+    return Expression(expression.statement_2.connective, new_left_side, new_right_side)
+
+
+def reverse_distributive_law(expression: Expression):
+    new_left = expression.statement_1.statement_1
+    new_right = Expression(expression.connective, expression.statement_1.statement_2,
+                           expression.statement_2.statement_2)
+
+    return Expression(expression.statement_1.connective, new_left, new_right)
+
+
+def identity_law(expression: Expression):
+    return expression.statement_1
+
+
+def negation_law(expression: Expression):
+    if expression.connective == disjunction:
+        return Tautology()
+    elif expression.connective == conjunction:
+        return Contradiction()
+
+
+def double_negative_law(expression: Expression):
+    return expression.statement_1.statement_1
+
+
+def idempotent_law(expression: Expression):
+    return expression.statement_1
+
+
+def universal_bound_law(expression: Expression):
+    return expression.statement_1
+
+
+def de_morgans_law(expression: Expression):
+    negated_expression = expression.statement_1
+    new_left_side = Expression(negation, negated_expression.statement_1)
+    new_right_side = Expression(negation, negated_expression.statement_2)
+
+    new_connective = junction_opposite(negated_expression.connective)
+
+    return Expression(new_connective, new_left_side, new_right_side)
+
+
+def reverse_de_morgans_law(expression: Expression):
+    new_connective = junction_opposite(expression.connective)
+
+    new_junction = Expression(new_connective, expression.statement_1.statement_1,
+                              expression.statement_2.statement_1)
+
+    return Expression(negation, new_junction)
+
+
+def absorption_law(expression: Expression):
+    return expression.statement_1
+
+
+def negation_of_tautology():
+    return Contradiction()
+
+
+def negation_of_contradiction():
+    return Tautology()
+
+
+# MAIN
 
 def main():
     p = Atom('p')
@@ -161,9 +256,7 @@ def main():
 
     p_and_q = Expression(conjunction, Atom('p'), Atom('q'))
     p_or_r = Expression(disjunction, Atom('p'), Atom('r'))
-    complex_expression = Expression(conjunction, p_and_q, p_or_r)
 
-    tt = truth_table_of(complex_expression)
 
 
 if __name__ == 'main':
