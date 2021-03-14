@@ -419,7 +419,6 @@ class NegationLaw(LawOfEquivalence):
 class DoubleNegativeLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-
         if is_negation(expression) and is_negation(expression.statement_1):
             return True
         return False
@@ -558,6 +557,28 @@ ALL_EQUIVALENCE_LAWS = LawOfEquivalence.__subclasses__()
 def all_egibile_laws_of(statement: Statement):
     return [law for law in ALL_EQUIVALENCE_LAWS if law.eligible(statement)]
 
+def equivalent_statements(statement):
+    return [law.apply(statement) for law in all_egibile_laws_of(statement)]
+
+
+class Create:
+
+    @staticmethod
+    def atom(self, symbol):
+        return Atom(symbol)
+
+    @staticmethod
+    def conjunction(self, statement_1, statement_2):
+        return Expression(conjunction, statement_1, statement_2)
+
+    @staticmethod
+    def disjunction(self, statement_1, statement_2):
+        return Expression(conjunction, statement_1, statement_2)
+
+    @staticmethod
+    def negation(self, statement_1):
+        return Expression(negation, statement_1)
+
 
 # MAIN
 
@@ -593,6 +614,7 @@ class TestExpressions:
 
         self.not_of_p_or_q = Expression(negation, self.p_or_q)
         self.not_p_and_not_q = Expression(conjunction, self.not_p, self.not_q)
+
 
 if __name__ == 'main':
     main()
