@@ -4,6 +4,8 @@ from collections import Callable
 from typing import List, Tuple, Union
 
 from functional_connjectives_with_atom_space_dict import negation, conjunction, disjunction
+import networkx as nx
+import matplotlib as plt
 
 AND_SYMBOL = '∧'
 NOT_SYMBOL = '~'
@@ -387,7 +389,7 @@ class ReverseDistributiveLaw(LawOfEquivalence):
         :param expression:
         :return:
         """
-        if is_junction(expression) and is_junction(expression.statement_2):
+        if is_junction(expression) and is_junction(expression.statement_2) and is_junction(expression.statement_1):
             if are_opposite_junctions(expression, expression.statement_2):
                 return True
         return False
@@ -554,29 +556,78 @@ class TautologyNegationLaw(LawOfEquivalence):
 ALL_EQUIVALENCE_LAWS = LawOfEquivalence.__subclasses__()
 
 
-def all_egibile_laws_of(statement: Statement):
+def all_eligible_laws_of(statement: Statement):
     return [law for law in ALL_EQUIVALENCE_LAWS if law.eligible(statement)]
 
+
 def equivalent_statements(statement):
-    return [law.apply(statement) for law in all_egibile_laws_of(statement)]
+    # check for cases where there are no equivalents
+    if not statement or is_atom(statement) or is_tautology_or_contradiction(statement):
+        return None
+
+    simple_equivalents = [law.apply(statement) for law in all_eligible_laws_of(statement)]
+
+    possible_sides = []
+    if statement.statement_1:
+        possible_sides.append([statement.statement_1])
+
+        equivalents_of_left_statement = equivalent_statements(statement.statement_1)
+        possible_sides.append(equivalents_of_left_statement)
+    if statement.statement_2:
+        possible_sides.append([statement.statement_2])
+
+        equivalents_of_right_statement = equivalent_statements(statement.statement_2)
+        possible_sides.append(equivalents_of_right_statement)
+
+
+
+    combinations_of_possible_sides = itertools.combinations(possible_sides, 2)
+
+    # includes both equivalent lefts and equivalent rights
+    all_equiv_statement_combos = []
+    for left, right in combinations_of_possible_sides:
+        if not left or not right:
+            # BIG HACK. None should not be in this list but I can't be fucked right now.
+            continue
+        equivalent_statements_for_this_combo = unique_combinations_of_two_lists(left, right)
+        all_equiv_statement_combos.extend(equivalent_statements_for_this_combo)
+
+    complex_equivalents_expressions = []
+    for left, right in all_equiv_statement_combos:
+        complex_equivalents_expressions.append(Expression(statement.connective, left, right))
+
+    return simple_equivalents + complex_equivalents_expressions
+
+
+def unique_combinations_of_two_lists(list_1, list_2):
+    # create empty list to store the combinations
+    unique_combinations = []
+
+    # Extract Combination Mapping in two lists
+    # using zip() + product()
+    unique_combinations = list(list(zip(list_1, element))
+                               for element in itertools.product(list_2, repeat=len(list_1)))
+
+    # printing unique_combination list
+    return unique_combinations
 
 
 class Create:
 
     @staticmethod
-    def atom(self, symbol):
+    def atom(symbol):
         return Atom(symbol)
 
     @staticmethod
-    def conjunction(self, statement_1, statement_2):
+    def conjunction(statement_1, statement_2):
         return Expression(conjunction, statement_1, statement_2)
 
     @staticmethod
-    def disjunction(self, statement_1, statement_2):
-        return Expression(conjunction, statement_1, statement_2)
+    def disjunction(statement_1, statement_2):
+        return Expression(disjunction, statement_1, statement_2)
 
     @staticmethod
-    def negation(self, statement_1):
+    def negation(statement_1):
         return Expression(negation, statement_1)
 
 
@@ -584,7 +635,13 @@ class Create:
 
 
 def main():
-    pass
+    p = Atom('p')
+    q = Atom('q')
+    not_q = Create.negation(q)
+    not_q_and_q = Create.conjunction(not_q, q)
+    to_explore = Create.disjunction(p, not_q_and_q)
+
+    equivs = 1  # search_for_path_between(to_explore)
 
 
 class TestExpressions:
@@ -617,7 +674,53 @@ class TestExpressions:
 
 
 if __name__ == 'main':
-    main()
+    pass  # main()
+
+p = Atom('p')
+q = Atom('q')
+
+not_q = Create.negation(q)
+not_q_and_q = Create.conjunction(not_q, q)
+
+r = Atom('r')
+
+complex = Create.conjunction(r,
+                             Create.disjunction(p, q))
+complex_equivalents = equivalent_statements(complex)
+to_explore = Create.disjunction(p, not_q_and_q)
+
+
+def find_equivalence_nodes_from(statement):
+    edge_pairs = []
+    laws_used = []
+    eligible_law = all_eligible_laws_of(statement)
+    for equivalence_law in eligible_law:
+        print(equivalence_law)
+        equivalent_statement = equivalence_law.apply(statement)
+        edge_pairs.append((statement, equivalent_statement))
+        laws_used.append(equivalence_law)
+
+    return zip(edge_pairs, laws_used)
+
+
+def search_for_path_between(first_statement, second_statement=None):
+    layers = 5
+
+    G = nx.Graph()
+
+    nodes_to_search = [first_statement]
+    new_nodes = []
+    for current_node in nodes_to_search:
+        new_node_edge_pairs = find_equivalence_nodes_from(current_node)
+
+        for edge_pair, law_used in new_node_edge_pairs:
+            G.add_edge(edge_pair, object=law_used)
+
+        return G
+
+
+not_not_q = Create.negation(not_q)
+equiv_nodes = find_equivalence_nodes_from(not_not_q)
 
 """ LOGICAL EQUIVALENCE REPRESENTED AS A GRAPH:
     Expressions can be expressed in a graph in which the edges between expressions indicate that the two connected

@@ -209,7 +209,7 @@ class TestLawsOfEquivalence(TestCase):
 
     def test_de_morgans_law(self):
         self.assertEqual(DeMorgansLaw.apply(self.not_of_p_and_q), self.not_p_or_not_q)
-        self.assertEqual(DeMorgansLaw.apply(self.not_of_p_or_q), self.not_p_and_not_q)
+        self.assertEqual(DeMorgansLaw.apply(self.not_of_p_or_q), self.not_p_andp_not_q)
 
         self.assertTrue(DeMorgansLaw.eligible(self.not_of_p_and_q))
         self.assertTrue(DeMorgansLaw.eligible(self.not_of_p_or_q))
