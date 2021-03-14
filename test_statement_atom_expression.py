@@ -92,6 +92,12 @@ class TestLawsOfEquivalence(TestCase):
         self.assertEqual(CommutativeLaw.apply(self.p_and_q).symbol, self.q_and_p.symbol)
         self.assertEqual(CommutativeLaw.apply(self.q_and_p).symbol, self.p_and_q.symbol)
 
+    def test_commutative_eligibility(self):
+        self.assertTrue(CommutativeLaw.eligible(self.p_and_q))
+        self.assertTrue(CommutativeLaw.eligible(self.p_or_q))
+        self.assertFalse(CommutativeLaw.eligible(self.not_p))
+
+
     def test_associative_law(self):
         associative_test_expression_AND = Expression(conjunction, self.p_and_q, self.r)
         expected_associative_result_1 = Expression(conjunction, self.p, self.q_and_r)
@@ -104,6 +110,11 @@ class TestLawsOfEquivalence(TestCase):
         associative_result_2 = AssociativeLaw.apply(associative_test_expression_OR)
         self.assertEqual(associative_result_2, expected_associative_result_2)
 
+        self.assertTrue(AssociativeLaw.eligible(associative_test_expression_AND))
+        self.assertTrue(AssociativeLaw.eligible(associative_test_expression_OR))
+        self.assertFalse(AssociativeLaw.eligible(self.not_p))
+        self.assertFalse(AssociativeLaw.eligible(self.not_p))
+
     def test_distributive_law(self):
         distributive_test_AND = Expression(conjunction, self.p,
                                            Expression(disjunction, self.q, self.r))
@@ -113,13 +124,16 @@ class TestLawsOfEquivalence(TestCase):
 
         self.assertEqual(DistributiveLaw.apply(distributive_test_AND), out)
 
-        distributive_test_AND = Expression(disjunction, self.p,
+        distributive_test_OR = Expression(disjunction, self.p,
                                            Expression(conjunction, self.q, self.r))
         out = Expression(conjunction,
                          Expression(disjunction, self.p, self.q),
                          Expression(disjunction, self.p, self.r))
 
-        self.assertEqual(DistributiveLaw.apply(distributive_test_AND), out)
+        self.assertEqual(DistributiveLaw.apply(distributive_test_OR), out)
+        
+        self.assertTrue(DistributiveLaw.eligible(distributive_test_AND))
+        self.assertTrue(DistributiveLaw.eligible(distributive_test_OR))
 
     def test_reverse_distributive_law(self):
         or_in = Expression(disjunction,
@@ -140,8 +154,15 @@ class TestLawsOfEquivalence(TestCase):
 
         self.assertEqual(ReverseDistributiveLaw.apply(and_in), and_out)
 
+        self.assertTrue(ReverseDistributiveLaw.eligible(or_in))
+        self.assertTrue(ReverseDistributiveLaw.eligible(and_in))
+
     def test_identity_law(self):
-        self.assertEqual(IdentityLaw.apply(Expression(conjunction, self.p, TAUTOLOGY)), self.p)
+        identity_test_case_1 = Expression(conjunction, self.p, TAUTOLOGY)
+
+        self.assertTrue(IdentityLaw.eligible(identity_test_case_1))
+
+        self.assertEqual(IdentityLaw.apply(identity_test_case_1), self.p)
         self.assertEqual(IdentityLaw.apply(Expression(disjunction, self.p, CONTRADICTION)), self.p)
 
     def test_negation_law(self):
@@ -155,11 +176,16 @@ class TestLawsOfEquivalence(TestCase):
         self.assertEqual(negation_law_product_2,
                          CONTRADICTION)
 
+        self.assertTrue(NegationLaw.eligible(p_or_not_p))
+        self.assertTrue(NegationLaw.eligible(p_and_not_p))
+
     def test_double_negative_law(self):
         not_not_p = Expression(negation,
                                Expression(negation, self.p))
 
         self.assertEqual(DoubleNegativeLaw.apply(not_not_p), self.p)
+
+        self.assertTrue(DoubleNegativeLaw.eligible(not_not_p))
 
     def test_idempotent_law(self):
         p_and_p = Expression(conjunction, self.p, self.p)
@@ -168,21 +194,32 @@ class TestLawsOfEquivalence(TestCase):
         p_or_p = Expression(disjunction, self.p, self.p)
         self.assertEqual(IdempotentLaw.apply(p_or_p), self.p)
 
+        self.assertTrue(IdempotentLaw.eligible(p_and_p))
+        self.assertTrue(IdempotentLaw.eligible(p_or_p))
+
     def test_universal_bound_law(self):
         p_or_t = Expression(disjunction, self.p, TAUTOLOGY)
         self.assertEqual(UniversalBoundLaw.apply(p_or_t), TAUTOLOGY)
 
-        p_and_c = Expression(conjunction, self.p,  CONTRADICTION)
-        self.assertEqual(UniversalBoundLaw.apply(p_and_c),  CONTRADICTION)
+        p_and_c = Expression(conjunction, self.p, CONTRADICTION)
+        self.assertEqual(UniversalBoundLaw.apply(p_and_c), CONTRADICTION)
+
+        self.assertTrue(UniversalBoundLaw.eligible(p_or_t))
+        self.assertTrue(UniversalBoundLaw.eligible(p_and_c))
 
     def test_de_morgans_law(self):
-
         self.assertEqual(DeMorgansLaw.apply(self.not_of_p_and_q), self.not_p_or_not_q)
         self.assertEqual(DeMorgansLaw.apply(self.not_of_p_or_q), self.not_p_and_not_q)
+
+        self.assertTrue(DeMorgansLaw.eligible(self.not_of_p_and_q))
+        self.assertTrue(DeMorgansLaw.eligible(self.not_of_p_or_q))
 
     def test_reverse_de_morgans_law(self):
         self.assertEqual(ReverseDeMorgansLaw.apply(self.not_p_or_not_q), self.not_of_p_and_q)
         self.assertEqual(ReverseDeMorgansLaw.apply(self.not_p_and_not_q), self.not_of_p_or_q)
+
+        self.assertTrue(ReverseDeMorgansLaw.eligible(self.not_p_or_not_q))
+        self.assertTrue(ReverseDeMorgansLaw.eligible(self.not_p_and_not_q))
 
     def test_absorption_law(self):
         p_disjunct_p_and_q = Expression(disjunction, self.p, self.p_and_q)
@@ -191,10 +228,20 @@ class TestLawsOfEquivalence(TestCase):
         p_conjunct_p_or_q = Expression(conjunction, self.p, self.p_or_q)
         self.assertEqual(AbsorptionLaw.apply(p_conjunct_p_or_q), self.p)
 
+        eligibility_1 = AbsorptionLaw.eligible(p_disjunct_p_and_q)
+        self.assertTrue(eligibility_1)
+        self.assertTrue(AbsorptionLaw.eligible(p_conjunct_p_or_q))
+
     def test_negation_of_tautology(self):
         not_tautology = Expression(negation, TAUTOLOGY)
-        self.assertEqual(TautologyNegationLaw.apply(not_tautology),  CONTRADICTION)
+        self.assertEqual(TautologyNegationLaw.apply(not_tautology), CONTRADICTION)
+        self.assertTrue(TautologyNegationLaw.eligible(not_tautology))
+
 
     def test_negation_of_contradiction(self):
         not_contradiction = Expression(negation, CONTRADICTION)
         self.assertEqual(ContradictionNegationLaw.apply(not_contradiction), TAUTOLOGY)
+        self.assertTrue(ContradictionNegationLaw.eligible(not_contradiction))
+
+    def test_find_all_eligible_laws(self):
+        pass

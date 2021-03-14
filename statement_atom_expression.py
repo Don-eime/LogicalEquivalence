@@ -219,7 +219,7 @@ def permutations_of_atom_values(atoms):
 
 
 # LAWS OF LOGICAL EQUIVALENCE
-def junction_opposite(junction: Union[conjunction, disjunction]):
+def junction_opposite(junction):
     """ Returns conjunction if given disjunction and vice-versa"""
     if junction == conjunction:
         return disjunction
@@ -299,7 +299,16 @@ class ReverseAssociativeLaw(LawOfEquivalence):
 class DistributiveLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        """ Returns the eligibility of expression for application of the Distributive Law. p ∧ (q ∨ r) """
+        if expression.connective in JUNCTIONS:
+            # the expression is a junction
+            if expression.statement_1.__class__ == Atom and expression.statement_2.__class__ == Expression:
+                # the left statement is an atom and the right statement is another expression
+                if expression.statement_2.connective == junction_opposite(expression.connective):
+                    # the connective of the second statement is the opposite junction of the parameter expression
+                    return True
+        else:
+            return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -314,17 +323,74 @@ class DistributiveLaw(LawOfEquivalence):
 class IdentityLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if expression.connective in JUNCTIONS and expression.statement_2 in [TAUTOLOGY, CONTRADICTION]:
+            # the expression is a junction and the second statement is either tautology or contradiction
+            return True
+        else:
+            return False
 
     @staticmethod
     def apply(expression: Expression):
         return expression.statement_1
 
 
+def is_junction(statement):
+    if is_expression(statement) and statement.connective in JUNCTIONS:
+        return True
+    else:
+        return False
+
+
+def is_atom(statement):
+    return True if statement.__class__ == Atom else False
+
+
+def is_expression(statement):
+    return True if statement.__class__ == Expression else False
+
+
+def are_opposite_junctions(expression_1, expression_2):
+    if not is_junction(expression_1) or not is_junction(expression_2):
+        return False
+
+    if expression_1.connective == junction_opposite(expression_2.connective):
+        return True
+    return False
+
+
+def is_tautology_or_contradiction(statement):
+    if statement.__class__ in [TAUTOLOGY, CONTRADICTION]:
+        return True
+    return False
+
+
+def is_negation(statement):
+    if is_expression(statement):
+        if statement.connective == negation:
+            return True
+    return False
+
+
+def is_double_negative(statement):
+    if is_negation(statement) and is_negation(statement.statement_1):
+        return True
+    return False
+
+
 class ReverseDistributiveLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        """
+            Eligible if:
+                connective and both statements are junctions AND
+                both statement connectives are the opposite junction to the central one
+        :param expression:
+        :return:
+        """
+        if is_junction(expression) and is_junction(expression.statement_2):
+            if are_opposite_junctions(expression, expression.statement_2):
+                return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -338,7 +404,9 @@ class ReverseDistributiveLaw(LawOfEquivalence):
 class NegationLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if is_junction(expression) and is_tautology_or_contradiction(expression.statement_2):
+            return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -348,30 +416,40 @@ class NegationLaw(LawOfEquivalence):
             return CONTRADICTION
 
 
-class ReverseNegationLaw(LawOfEquivalence):
-    @staticmethod
-    def eligible(expression: Expression):
-        pass
-
-    @staticmethod
-    def apply(expression: Expression):
-        pass
-
-
 class DoubleNegativeLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+
+        if is_negation(expression) and is_negation(expression.statement_1):
+            return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
         return expression.statement_1.statement_1
 
 
+class ReverseDoubleNegativeLaw(LawOfEquivalence):
+    """ Gives ~(~(p)) from p. Likely unneeded."""
+
+    @staticmethod
+    def eligible(expression: Expression):
+        if not is_negation(expression):
+            # everything except negations are eligible
+            return True
+        return False
+
+    @staticmethod
+    def apply(expression: Expression):
+        return Expression(negation, Expression(negation, expression))
+
+
 class IdempotentLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if is_junction(expression) and expression.statement_1 == expression.statement_2:
+            return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -381,7 +459,9 @@ class IdempotentLaw(LawOfEquivalence):
 class UniversalBoundLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if is_junction(expression) and is_tautology_or_contradiction(expression.statement_2):
+            return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -394,7 +474,9 @@ class UniversalBoundLaw(LawOfEquivalence):
 class DeMorgansLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if is_negation(expression) and is_junction(expression.statement_1):
+            return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -411,7 +493,10 @@ class DeMorgansLaw(LawOfEquivalence):
 class ReverseDeMorgansLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if is_junction(expression) and is_negation(expression.statement_1) and is_negation(expression.statement_2):
+            return True
+
+        return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -426,7 +511,17 @@ class ReverseDeMorgansLaw(LawOfEquivalence):
 class AbsorptionLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if is_junction(expression):
+            # must be junction
+            if are_opposite_junctions(expression, expression.statement_2):
+                # right statement must also be a junction, and junction oppsite to expression
+                if expression.statement_2.statement_1 != expression.statement_2.statement_2:
+                    # the right junction cannot be between the same to Atoms (so that this law doesn't apply 2 laws)
+                    if expression.statement_2.statement_1 == expression.statement_1:
+                        # the left statement of right statement must be the same as
+                        # the left statement of parent expression
+                        return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -436,7 +531,9 @@ class AbsorptionLaw(LawOfEquivalence):
 class ContradictionNegationLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if is_negation(expression) and expression.statement_1 == CONTRADICTION:
+            return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
@@ -446,11 +543,20 @@ class ContradictionNegationLaw(LawOfEquivalence):
 class TautologyNegationLaw(LawOfEquivalence):
     @staticmethod
     def eligible(expression: Expression):
-        pass
+        if is_negation(expression) and expression.statement_1 == TAUTOLOGY:
+            return True
+        return False
 
     @staticmethod
     def apply(expression: Expression):
         return CONTRADICTION
+
+
+ALL_EQUIVALENCE_LAWS = LawOfEquivalence.__subclasses__()
+
+
+def all_egibile_laws_of(statement: Statement):
+    return [law for law in ALL_EQUIVALENCE_LAWS if law.eligible(statement)]
 
 
 # MAIN
@@ -459,6 +565,34 @@ class TautologyNegationLaw(LawOfEquivalence):
 def main():
     pass
 
+
+class TestExpressions:
+    def __init__(self):
+        self.p = Atom('p')
+        self.q = Atom('q')
+        self.r = Atom('r')
+
+        # general use negations
+        self.not_p = Expression(negation, self.p)
+        self.not_q = Expression(negation, self.q)
+        self.not_r = Expression(negation, self.r)
+
+        # general use conjunctions
+        self.p_and_q = Expression(conjunction, self.p, self.q)
+        self.q_and_p = Expression(conjunction, self.q, self.p)
+        self.q_and_r = Expression(conjunction, self.q, self.r)
+
+        # general use disjunctions
+        self.p_or_q = Expression(disjunction, self.p, self.q)
+        self.q_or_p = Expression(disjunction, self.q, self.p)
+        self.q_or_r = Expression(disjunction, self.q, self.r)
+
+        # for de morgans tests
+        self.not_of_p_and_q = Expression(negation, self.p_and_q)
+        self.not_p_or_not_q = Expression(disjunction, self.not_p, self.not_q)
+
+        self.not_of_p_or_q = Expression(negation, self.p_or_q)
+        self.not_p_and_not_q = Expression(conjunction, self.not_p, self.not_q)
 
 if __name__ == 'main':
     main()
