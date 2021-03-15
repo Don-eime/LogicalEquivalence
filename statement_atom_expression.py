@@ -24,6 +24,25 @@ TAUTOLOGY_CONTRADICTION_SYMBOLS = [TAUTOLOGY_SYMBOL, CONTRADICTION_SYMBOL]
 RESERVED_SYMBOLS = CONNECTIVE_SYMBOLS + TAUTOLOGY_CONTRADICTION_SYMBOLS
 
 
+def symbolic_representation_of_expression(expression: 'Expression'):
+    pass
+    # """ Given an expression, returns the symbolic representation of it.
+    #                 e.g '(p ∧ q)' or '~p' or '(p ∧ q) ∧ r'
+    #
+    #     Requires the expression to have AT LEAST a connective and an expression.
+    # """
+    # assert expression.connective and expression.left_term
+    # if expression.right_term:
+    #     symbolic_representation = '(%s %s %s)' % (
+    #         expression.left_term.symbol, CONNECTIVE_SYMBOL_DICTIONARY[expression.connective],
+    #         expression.right_term.symbol)
+    # else:
+    #     # only one statement, so this is a negation.
+    #     symbolic_representation = '%s%s' % (
+    #         CONNECTIVE_SYMBOL_DICTIONARY[expression.connective], expression.left_term.symbol)
+    #
+    # return symbolic_representation
+
 class Statement(ABC):
     symbol: str
 
@@ -188,23 +207,7 @@ def evaluate_connective_in_atom_space(connective: Callable, atom_space: dict, ke
     return connective(statement_values)
 
 
-def symbolic_representation_of_expression(expression: Expression):
-    """ Given an expression, returns the symbolic representation of it.
-                    e.g '(p ∧ q)' or '~p' or '(p ∧ q) ∧ r'
 
-        Requires the expression to have AT LEAST a connective and an expression.
-    """
-    assert expression.connective and expression.statement_1
-    if expression.statement_2:
-        symbolic_representation = '(%s %s %s)' % (
-            expression.statement_1.symbol, CONNECTIVE_SYMBOL_DICTIONARY[expression.connective],
-            expression.statement_2.symbol)
-    else:
-        # only one statement, so this is a negation.
-        symbolic_representation = '%s%s' % (
-            CONNECTIVE_SYMBOL_DICTIONARY[expression.connective], expression.statement_1.symbol)
-
-    return symbolic_representation
 
 
 def permutations_of_atom_values(atoms):
@@ -567,26 +570,28 @@ def all_simple_equivalents(statement, is_inner_statement_of_expression=False):
     return [(law.apply(statement), law) for law in all_eligible_laws_of(statement)]
 
 
-def all_equivalents_where_one_side_has_changed(statement: Statement):
-    equivalents_where_one_side_has_changed = []
-
-    # left side
-    # get left equivalents
-    equivalents_of_left_statement = all_simple_equivalents(statement.statement_1)
-
-    # create expressions where
-    equivalents_where_left_side_changes = [Expression(statement.connective, new_left_side, statement.statement_2)
-                                           for new_left_side in equivalents_of_left_statement]
-    equivalents_where_one_side_has_changed.extend(equivalents_where_left_side_changes)
-
-    # right side
-    if statement.statement_2:
-
-
-        equivalents_of_right_statement = all_simple_equivalents(statement.statement_2)
-        equivalents_where_left_side_changes = [Expression(statement.connective, new_right_side, statement.statement_2)
-                                               for new_right_side in equivalents_of_right_statement]
-        equivalents_where_one_side_has_changed.extend(equivalents_where_left_side_changes)
+# def all_equivalents_where_one_side_has_changed(statement: Statement):
+#     return
+#     equivalents_where_one_side_has_changed = []
+#
+#     # left side
+#     # get left equivalents
+#     equivalents_of_left_statement = all_simple_equivalents(statement.statement_1)
+#
+#     # create expressions where
+#     equivalents_where_left_side_changes = [Expression(statement.connective, new_left_side, statement.statement_2)
+#                                            for new_left_side in equivalents_of_left_statement]
+#     # IF IT IS AN ATOM, THEN IT DOESN"T HAVE A CONNECTIVE! MAKE ATOM AN EXPRESSION with no connective.
+#     equivalents_where_one_side_has_changed.extend(equivalents_where_left_side_changes)
+#
+#     # right side
+#     if statement.statement_2:
+#
+#
+#         equivalents_of_right_statement = all_simple_equivalents(statement.statement_2)
+#         equivalents_where_left_side_changes = [Expression(statement.connective, new_right_side, statement.statement_2)
+#                                                for new_right_side in equivalents_of_right_statement]
+#         equivalents_where_one_side_has_changed.extend(equivalents_where_left_side_changes)
 
 
 
