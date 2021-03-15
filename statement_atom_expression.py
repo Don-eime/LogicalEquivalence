@@ -560,43 +560,35 @@ def all_eligible_laws_of(statement: Statement):
     return [law for law in ALL_EQUIVALENCE_LAWS if law.eligible(statement)]
 
 
-def equivalent_statements(statement):
-    # check for cases where there are no equivalents
-    if not statement or is_atom(statement) or is_tautology_or_contradiction(statement):
-        return None
+def all_simple_equivalents(statement, is_inner_statement_of_expression=False):
+    """ Returns all equivalent statements using only one application of a LawOfLogicalEquivalence to the outer most
+            statement.
+     """
+    return [(law.apply(statement), law) for law in all_eligible_laws_of(statement)]
 
-    simple_equivalents = [law.apply(statement) for law in all_eligible_laws_of(statement)]
 
-    possible_sides = []
-    if statement.statement_1:
-        possible_sides.append([statement.statement_1])
+def all_equivalents_where_one_side_has_changed(statement: Statement):
+    equivalents_where_one_side_has_changed = []
 
-        equivalents_of_left_statement = equivalent_statements(statement.statement_1)
-        possible_sides.append(equivalents_of_left_statement)
+    # left side
+    # get left equivalents
+    equivalents_of_left_statement = all_simple_equivalents(statement.statement_1)
+
+    # create expressions where
+    equivalents_where_left_side_changes = [Expression(statement.connective, new_left_side, statement.statement_2)
+                                           for new_left_side in equivalents_of_left_statement]
+    equivalents_where_one_side_has_changed.extend(equivalents_where_left_side_changes)
+
+    # right side
     if statement.statement_2:
-        possible_sides.append([statement.statement_2])
-
-        equivalents_of_right_statement = equivalent_statements(statement.statement_2)
-        possible_sides.append(equivalents_of_right_statement)
 
 
+        equivalents_of_right_statement = all_simple_equivalents(statement.statement_2)
+        equivalents_where_left_side_changes = [Expression(statement.connective, new_right_side, statement.statement_2)
+                                               for new_right_side in equivalents_of_right_statement]
+        equivalents_where_one_side_has_changed.extend(equivalents_where_left_side_changes)
 
-    combinations_of_possible_sides = itertools.combinations(possible_sides, 2)
 
-    # includes both equivalent lefts and equivalent rights
-    all_equiv_statement_combos = []
-    for left, right in combinations_of_possible_sides:
-        if not left or not right:
-            # BIG HACK. None should not be in this list but I can't be fucked right now.
-            continue
-        equivalent_statements_for_this_combo = unique_combinations_of_two_lists(left, right)
-        all_equiv_statement_combos.extend(equivalent_statements_for_this_combo)
-
-    complex_equivalents_expressions = []
-    for left, right in all_equiv_statement_combos:
-        complex_equivalents_expressions.append(Expression(statement.connective, left, right))
-
-    return simple_equivalents + complex_equivalents_expressions
 
 
 def unique_combinations_of_two_lists(list_1, list_2):
@@ -686,7 +678,7 @@ r = Atom('r')
 
 complex = Create.conjunction(r,
                              Create.disjunction(p, q))
-complex_equivalents = equivalent_statements(complex)
+complex_equivalents = equivalent_statements_using_one_step(complex)
 to_explore = Create.disjunction(p, not_q_and_q)
 
 
