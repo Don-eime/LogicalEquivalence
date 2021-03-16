@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod, abstractproperty
 from collections import Callable
 from typing import List, Tuple, Union
 
-from functional_connjectives_with_atom_space_dict import negation, conjunction, disjunction
 import networkx as nx
 import matplotlib as plt
 
@@ -13,7 +12,7 @@ OR_SYMBOL = '∨'
 IMPLIES_SYMBOL = '->'
 CONNECTIVE_SYMBOLS = [AND_SYMBOL, NOT_SYMBOL, OR_SYMBOL, IMPLIES_SYMBOL]
 
-JUNCTIONS = [conjunction, disjunction]
+
 
 TAUTOLOGY_SYMBOL = 't'
 CONTRADICTION_SYMBOL = 'c'
@@ -185,9 +184,9 @@ class Statement:
     """ A statement can be an atom or an expression. Do not instantiate directly but use Create class"""
 
     def __init__(self, connective: Callable, left_term: 'Statement' = None, right_term: 'Statement' = None,
-                 symbol=None):
+                 symbol=None, law_used_in_creation = None):
         # PARAM CHECK
-        if connective in JUNCTIONS:
+        if connective == ValueFunctions.conjunction or connective == ValueFunctions.disjunction:
             assert right_term, 'A junction must be made with two terms'
 
         self._connective = connective
@@ -196,6 +195,8 @@ class Statement:
 
         self.is_atom = True if Util.is_atom(self) else False
         self.symbol = symbol if self.is_atom else Util.symbolic_representation_of_expression(self)
+
+        self.law_used_in_creation = law_used_in_creation
 
         self._truth_table = None
 
@@ -242,6 +243,13 @@ class Statement:
                 return True
             return False
 
+    # Factory method
+    def copy(self, new_connective=None, new_left_term=None, new_right_term=None, law_used_in_creation=None):
+        connective = self._connective if new_connective is None else new_connective
+        left_term = self.left_term if new_left_term is None else new_left_term
+        right_term = self.right_term if new_right_term is None else new_right_term
+
+        return Statement(connective, left_term, right_term, law_used_in_creation=law_used_in_creation)
 
 # SPECIAL STATEMENT CONSTANT DEFINITIONS
 TAUTOLOGY = Statement(connective=ValueFunctions.tautology)

@@ -1,359 +1,444 @@
-""" The goal of this project is to create a file that can solve logical equivalences. Showing the possible routes
-    from one logical statement to another"""
-import itertools
-from typing import Callable, Type, Union
-
-AND_SYMBOL = '∧'
-NEGATION_SYMBOL = '~'
-OR_SYMBOL = '∨'
-
-negate: Callable[[bool], bool] = lambda statement_variable: not statement_variable.truth_value
-conjoin: Callable[[bool], bool] = lambda statement_1, statement_2: statement_1.truth_value and statement_2.truth_value
-inclusive_disjoin: Callable[[bool], bool] = lambda statement_1, statement_2: statement_1.truth_value \
-                                                                             or statement_2.truth_value
+from logical_statements import *
 
 
-# STATEMENT VARIABLE
-
-class Atom():
-    """ A statement variable, like p, ~p, q, p ∧ q, can either be True or False"""
-
-    def __init__(self, symbol: str, value: bool = None):
-        self.symbol = symbol
-        self.truth_value: bool = value
-
-    def __str__(self):
-        return self.symbol
-
-    def __repr__(self):
-        return '<StatementVariable: %s = %s>' % (self.symbol, self.truth_value)
-
-
-# GENERAL LOGICAL EXPRESSION
-
-class Expression:
-    """ The parent class of all logical connectives. It holds one or more Statement Variables (class), and the child
-            class is the logical connective component
-    Any logical expression of one or more StatementVariable AND a logical connective.
-            """
-
-    def __init__(self, symbol, evaluation_function, variable_1, variable_2=None):
-        """
-
-        :param symbol: the symbolic representation of this expression
-        :param evaluation_function: the function that is used to evalute the truth value of this expression
-        :param variable_1: the first StatementVariable in this expression
-        :param variable_2: the second StatementVariable in this expression. None in the case of the connective being
-                            Negation
-        """
-        self.evaluate: Callable = evaluation_function
-        self.variable_1 = variable_1
-        self.variable_2 = variable_2
-
-
-
-        # calculate the truth value of this expression iff all needed variables have a truth value
-        if evaluation_function == negate:
-            # negate is a special case where only one variable is passed into the evaluation function
-            if variable_1:
-                self.truth_value = evaluation_function(variable_1)
-                print(self.truth_value)
-        else:
-            # for all other connectives, two variables are passed into the evaluation function
-            if variable_1 and variable_2:
-                self.truth_value = evaluation_function(variable_1, variable_2)
-
-    def __str__(self):
-        return self.symbol
-
-    def __repr__(self):
-        return '<StatementVariable: %s = %s>' % (self.symbol, self.truth_value)
-
-    @property
-    def variables(self):
-        return [self.variable_1, self.variable_2]
-
-    def unique_atoms(self, statements=None):
-        all_unique_atoms = set()
-        to_search = self.variables if statements is None else statements
-        for statement in to_search:
-            if is_atomic(statement):
-                all_unique_atoms.add(statement)
-            else:
-                all_unique_atoms.add(self.unique_atoms(statement))
-
-        return all_unique_atoms
-
-
-def flatten(object):
-    gather = []
-    for item in object:
-        if isinstance(item, (list, tuple, set)):
-            gather.extend(flatten(item))
-        else:
-            gather.append(item)
-    return gather
-
-
-def nested_atoms_in(expression):
-    if is_atomic(expression):
-        return [expression]
+# UTIL
+def is_junction(statement):
+    if statement.connective is ValueFunctions.conjunction or \
+            statement.connective is ValueFunctions.disjunction:
+        return True
     else:
-        return [nested_atoms_in(expression.variable_1)] + [nested_atoms_in(expression.variable_2)]
+        return False
 
 
-def unique_atoms_in(expression):
-    nested_list_of_atoms = nested_atoms_in(expression)
-    return set(flatten(nested_list_of_atoms))
+def junction_opposite(statement):
+    if statement.connective is ValueFunctions.conjunction:
+        return ValueFunctions.disjunction
+    elif statement.connective is ValueFunctions.disjunction:
+        return ValueFunctions.conjunction
+    return None
 
 
+def is_statement(statement):
+    return True if statement.__class__ == Statement else False
 
 
-def bool_to_int(boolean):
-    return int(boolean is True)
+def are_opposite_junctions(statement_1, statement_2):
+    if not is_junction(statement_1) or not is_junction(statement_2):
+        return False
+
+    junction_2s_opposite = junction_opposite(statement_2)
+    if statement_1.connective is junction_2s_opposite:
+        return True
+    return False
 
 
-def is_atomic(statement):
-    return True if type(statement) == Atom else False
+def is_tautology_or_contradiction(statement):
+    if statement.connective is ValueFunctions.tautology or \
+            statement.connective is ValueFunctions.contradiction:
+        return True
+    return False
 
 
-# Truth Tables
-class TruthTable:
-    def __init__(self, expression: Expression):
-        self.expression = expression
-        self.unique_atoms = unique_atoms_in(self.expression)
-        self.atom_count = len(self.unique_atoms)
-        self.permutations = self.truth_value_permutations(self.unique_atoms)
-        self.truth_values = self.calculate_truth_values_for_all_permutations(self.permutations)
-
-        self.rows = 2 ** self.atom_count
+def is_negation(statement):
+    if statement.connective is ValueFunctions.negation:
+        return True
+    return False
 
 
+def is_double_negative(statement):
+    if is_negation(statement) and is_negation(statement.left_term):
+        return True
+    return False
 
 
+class LawOfEquivalence(ABC):
+    short_name: str
 
-def truth_value_permutations(unique_atoms):
-    atom_count = len(unique_atoms)
-    rows = 2 ** atom_count
+    @staticmethod
+    @abstractmethod
+    def eligible(statement: Statement):
+        pass
 
-    columns = []
-    row_number_divisor = 0.5
-    atom_index = 0
-    while atom_index <  atom_count - 1:
-        row_values = [True] * int(rows * row_number_divisor) + [False] * int(rows * row_number_divisor)
-        columns.append(row_values)
-        row_number_divisor *= row_number_divisor
-        atom_index += 1
-
-    singleton_row = [True, False] * int(rows / 2)
-    columns.append(singleton_row)
-    return columns
-
-def permutations_of_atom_values(atoms):
-    """Given a set of atoms, returns a list with all possible combinations of their True/False values"""
-    atom_count = len(atoms)
-
-    unique_true_false_combinations = [[True]*i + [False]*(atom_count-i) for i in range(0,atom_count+1)]
-    all_permutations = []
-    for combination in unique_true_false_combinations:
-        permutations = set(itertools.permutations(combination))
-        all_permutations.extend(permutations)
-
-    return all_permutations
-
-
-
-class LogicalConnective(Expression):
-    def __init__(self, symbol: str, evaluation_function: Callable, variable_1, variable_2=None):
-        super().__init__(symbol, evaluation_function, variable_1, variable_2)
-
-
-
-# LOGICAL CONNECTIVES
-
-class Negation(Expression):
-    def __init__(self, variable_1: Atom):
-        eval_function = negate
-        self.symbol = NEGATION_SYMBOL + variable_1.__str__()
-        super().__init__(self.symbol, eval_function, variable_1)
-
-
-class Disjunction(Expression):
-    def __init__(self, variable_1: Atom, variable_2: Atom):
-        eval_function = inclusive_disjoin
-        self.symbol = f'({variable_1.__str__()} {OR_SYMBOL} {variable_2.__str__()})'
-        super().__init__(self.symbol, eval_function, variable_1, variable_2)
-
-
-class Conjunction(Expression):
-    def __init__(self, variable_1: Atom, variable_2: Atom):
-        eval_function = conjoin
-        self.symbol = f'({variable_1.__str__()} {AND_SYMBOL} {variable_2.__str__()})'
-
-        super().__init__(self.symbol, eval_function, variable_1, variable_2)
-
-
-class LawOfLogicalEquivalence:
-    def __init__(self, input_expresion: Expression):
+    @staticmethod
+    @abstractmethod
+    def apply(statement: Statement):
         pass
 
 
-class Commutative(LawOfLogicalEquivalence):
-    def __init__(self, input_expression: Union[Type[Conjunction], Type[Disjunction]]):
-        if type(input_expression) not in [Disjunction, Conjunction]:
-            raise Exception('A Commutative equivalence of something not a disjunction or conjunction was attempted')
+class CommutativeLaw(LawOfEquivalence):
+    short_name = 'Commut.'
+
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement):
+            return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        return Statement(statement.connective, statement.right_term, statement.left_term)
 
 
-def commutation_equivalent(expression: Union[Type[Conjunction], Type[Disjunction]]):
-    if type(expression) not in [Disjunction, Conjunction]:
-        raise Exception('A Commutative equivalence of something not a disjunction or conjunction was attempted')
+class AssociativeLaw(LawOfEquivalence):
+    short_name = 'Assoc.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement):
+            if statement.left_term.connective == statement.connective:
+                return True
+        else:
+            return False
 
-    return expression.__class__(expression.variable_2, expression.variable_1)
+    @staticmethod
+    def apply(statement: Statement):
+        """ Given (p AND q) AND r. Returns Returns p AND (q AND r) """
+        new_left = statement.left_term.left_term  # p
 
-# LAWS OF LOGICAL EQUIVALENCE
+        new_right = Statement(statement.connective,
+                              statement.left_term.right_term,  # q
+                              statement.right_term)  # r
 
-# LAWS OF LOGICAL EQUIVALENCE
-def junction_opposite(junction: Union[Conjunction, Disjunction]):
-    if junction == Conjunction:
-        return Disjunction
-    elif junction == Disjunction:
-        return Conjunction
-    else:
-        raise ValueError('junction_opposite() must be passed either a conjunction or disjunction')
-
-
-def association_equivalent(expression):
-    """ Returns p AND (q AND r) given (p AND q) AND r"""
-
-    expression_class = expression.__class__
-
-    assert expression_class == expression.variable_1.__class__
-
-    #                                       p                                           q                       AND    r
-    return expression_class(expression.variable_1.variable_1,
-                            expression_class(expression.variable_1.variable_2, expression.variable_2))
+        return Statement(statement.connective, new_left, new_right)
 
 
-def distributive_equivalent(expression):
-    assert type(expression.variable_1) == Atom
+class ReverseAssociativeLaw(LawOfEquivalence):
+    short_name = 'Rev. Assoc.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement):
+            if statement.right_term.__class__ == Statement:
+                if statement.right_term.connective == statement.connective:
+                    return True
+        else:
+            return False
 
-    expression_type = type(expression)
-    variable_2_type = type(expression.variable_2)
+    @staticmethod
+    def apply(statement: Statement):
+        """ Given p AND (q AND r). Returns (p AND q) AND r."""
+        new_left = Statement(statement.connective,
+                             statement.left_term,  # p
+                             statement.right_term.left_term)  # q
 
-    left_side = expression_type(expression.variable_1, expression.variable_2.variable_1)
-    right_side = expression_type(expression.variable_1, expression.variable_2.variable_2)
+        new_right = statement.right_term.right_term  # r
 
-    distributed_expression = variable_2_type(left_side, right_side)
-    return distributed_expression
-
-
-def reverse_distributive_equivalent(expression):
-    left_side = expression.variable_1
-    right_side = expression.variable_2
-
-    left_side_type = type(left_side)
-    right_side_type = type(right_side)
-    assert left_side_type == right_side_type
-
-    common_atom = left_side.variable_1
-
-    reverse_distributed_expression = left_side_type(common_atom,
-                                                    type(expression)(left_side.variable_2, right_side.variable_2))
-    return reverse_distributed_expression
+        return Statement(statement.connective, new_left, new_right)
 
 
-def convert_to_tautology(expression):
-    pass
+class DistributiveLaw(LawOfEquivalence):
+    short_name = 'Distr.'
+    @staticmethod
+    def eligible(statement: Statement):
+        """ Returns the eligibility of statement for application of the Distributive Law. p ∧ (q ∨ r) """
+        if is_junction(statement):
+            # the statement is a junction
+            if Util.is_atom(statement.left_term) and statement.right_term.__class__ == Statement:
+                # the left statement is an atom and the right statement is another statement
+                if statement.right_term.connective == junction_opposite(statement):
+                    # the connective of the second statement is the opposite junction of the parameter statement
+                    return True
+        else:
+            return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        new_left_side = Statement(statement.connective, statement.left_term,
+                                  statement.right_term.left_term)
+        new_right_side = Statement(statement.connective, statement.left_term,
+                                   statement.right_term.right_term)
+
+        return Statement(statement.right_term.connective, new_left_side, new_right_side)
 
 
-def convert_to_contradiciton(expression):
-    pass
+class IdentityLaw(LawOfEquivalence):
+    short_name = 'Iden.'
+
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement) and statement.right_term in [TAUTOLOGY, CONTRADICTION]:
+            # the statement is a junction and the second statement is either tautology or contradiction
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        return statement.left_term
 
 
-def identity_equivalent(expression):
-    pass
+class ReverseDistributiveLaw(LawOfEquivalence):
+    short_name = 'Rev. Distr.'
+    @staticmethod
+    def eligible(statement: Statement):
+        """
+            Eligible if:
+                connective and both statements are junctions AND
+                both statement connectives are the opposite junction to the central one
+        :param statement:
+        :return:
+        """
+        if is_junction(statement) and is_junction(statement.right_term) and is_junction(statement.left_term):
+            if are_opposite_junctions(statement, statement.right_term):
+                return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        new_left = statement.left_term.left_term
+        new_right = Statement(statement.connective, statement.left_term.right_term,
+                              statement.right_term.right_term)
+
+        return Statement(statement.left_term.connective, new_left, new_right)
 
 
-def negation_law_equivalent(expression):
-    pass
+class NegationLaw(LawOfEquivalence):
+    short_name = 'Neg.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement) and statement.left_term == statement.right_term.left_term and\
+                is_negation(statement.right_term):
+            return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        if statement.connective == ValueFunctions.disjunction:
+            return TAUTOLOGY
+        elif statement.connective == ValueFunctions.conjunction:
+            return CONTRADICTION
 
 
-def double_negative_law_equivalent(expression):
-    pass
+class DoubleNegativeLaw(LawOfEquivalence):
+    short_name = 'Doub. Neg.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_negation(statement) and is_negation(statement.left_term):
+            return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        return statement.left_term.left_term
 
 
-def idempotent_equivalent(expression):
-    pass
+class ReverseDoubleNegativeLaw(LawOfEquivalence):
+    """ Gives ~(~(p)) from p. Likely unneeded."""
+
+    short_name = 'Rev. Doub. Neg.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if not is_negation(statement):
+            # everything except negations are eligible
+            return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        return Statement(ValueFunctions.negation, Statement(ValueFunctions.negation, statement))
 
 
-def universal_bound_law_equivalent(expression):
-    pass
+class IdempotentLaw(LawOfEquivalence):
+    short_name = 'Idem.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement) and statement.left_term == statement.right_term:
+            return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        return statement.left_term
 
 
-def de_morgan_equivalent(expression):
-    pass
+class UniversalBoundLaw(LawOfEquivalence):
+    short_name = 'Uni. Boun.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement) and is_tautology_or_contradiction(statement.right_term):
+            return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        if statement.connective == ValueFunctions.disjunction:
+            return TAUTOLOGY
+        elif statement.connective == ValueFunctions.conjunction:
+            return CONTRADICTION
 
 
-def absorption(expression):
-    pass
+class DeMorgansLaw(LawOfEquivalence):
+    short_name = 'De Morg.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_negation(statement) and is_junction(statement.left_term):
+            return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        negated_statement = statement.left_term
+        new_left_side = Create.negation(negated_statement.left_term)
+        new_right_side = Create.negation(negated_statement.right_term)
+
+        new_connective = junction_opposite(negated_statement)
+
+        de_morgans_product = Statement(new_connective, new_left_side, new_right_side)
+        return de_morgans_product
 
 
-def negation_of_tautology(expression):
-    pass
+class ReverseDeMorgansLaw(LawOfEquivalence):
+    short_name = 'Rev. De Morg.'
+
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement) and is_negation(statement.left_term) and is_negation(statement.right_term):
+            return True
+
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        new_connective = junction_opposite(statement)
+
+        new_junction = Statement(new_connective, statement.left_term.left_term,
+                                 statement.right_term.left_term)
+
+        return Create.negation(new_junction)
 
 
-def negation_of_contradiction(expression):
-    pass
+class AbsorptionLaw(LawOfEquivalence):
+    short_name = 'Abs'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_junction(statement):
+            # must be junction
+            if are_opposite_junctions(statement, statement.right_term):
+                # right statement must also be a junction, and junction opposite to statement
+                if statement.right_term.left_term != statement.right_term.right_term:
+                    # the right junction cannot be between the same to Atoms (so that this law doesn't apply 2 laws)
+                    if statement.right_term.left_term == statement.left_term:
+                        # the left statement of right statement must be the same as
+                        # the left statement of parent statement
+                        return True
+        return False
+
+    @staticmethod
+    def apply(statement: Statement):
+        return statement.left_term
 
 
-def eligibility(expression):
-    eligible_laws = []
+class ContradictionNegationLaw(LawOfEquivalence):
+    short_name = 'Contr. Neg.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_negation(statement) and statement.left_term == CONTRADICTION:
+            return True
+        return False
 
-    expression_type = type(expression)
-    variable_1_type = type(expression.variable_1)
-    variable_2_type = type(expression.variable_2)
-    # Laws involving Disjunction and Conjunction
-    if expression_type in [Disjunction, Conjunction]:
-        # commutative laws
-        eligible_laws.append(commutation_equivalent)
-
-        # associative laws: first statement variable is itself the same as the parent statemeny type (OR, AND)
-
-        if variable_1_type == expression_type:
-            eligible_laws.append(association_equivalent)
-
-    return eligible_laws
+    @staticmethod
+    def apply(statement: Statement):
+        return TAUTOLOGY
 
 
-TRUE_STATEMENT_p = Atom('p', True)
-FALSE_STATEMENT_q = Atom('q', False)
-TRUE_r = Atom('r', True)
-conjunction_TF = Conjunction(TRUE_STATEMENT_p, FALSE_STATEMENT_q)
-conjunction_FF = Conjunction(FALSE_STATEMENT_q, FALSE_STATEMENT_q)
+class TautologyNegationLaw(LawOfEquivalence):
+    short_name = 'Taut. Neg.'
+    @staticmethod
+    def eligible(statement: Statement):
+        if is_negation(statement) and statement.left_term == TAUTOLOGY:
+            return True
+        return False
 
-to_distribute = Disjunction(TRUE_r, conjunction_TF)
-distributed = distributive_equivalent(to_distribute)
-reverse_distributive_equivalent(distributed)
-
-p_and_q = unique_atoms_in(conjunction_TF)
-
-TT_of_pq = truth_value_permutations(p_and_q)
+    @staticmethod
+    def apply(statement: Statement):
+        return CONTRADICTION
 
 
-def walk_down_expression_evaluation(expression):
-    unique_atoms = unique_atoms_in(expression)
+def all_simple_equivalents(statement: Statement):
+    if not statement:
+        return []
+    eligible_laws = [law for law in ALL_EQUIVALENCE_LAWS if law.eligible(statement)]
 
-    all_permutations_of_truth_values = permutations_of_atom_values(unique_atoms)
+    return [(law.apply(statement), law) for law in eligible_laws]
 
-    all_permutations_of_atom_values = []
-    for truth_value_permutation in all_permutations_of_truth_values:
-        atom_values = {}
-        for i, atom in enumerate(unique_atoms):
-            atom_values[atom] = truth_value_permutation[i]
-        all_permutations_of_atom_values.append(atom_values) # ok
 
-    #for atom_value_permutations
-        # evalue the expression but set each atom value to the matching bool in the diction
-        # this seems fucking clunky. Maybe I build up a function as the expression is created that can take params
-        # for each unique atom. That seems like a better way. So expression.evaluation is a nested function type deal.
-walk_down_expression_evaluation(to_distribute)
+def equivalents_in_which_left_statement_changes(statement: Statement):
+    if not statement:
+        return []
+
+    left_statement = statement.left_term
+
+    left_equivalents = all_simple_equivalents(left_statement)
+
+    equivalent_statements = [
+        (statement.copy(new_left_term=left_equivalent, law_used_in_creation=law_used_in_creation), law_used_in_creation)
+        for left_equivalent, law_used_in_creation in left_equivalents]
+
+    return equivalent_statements
+
+
+def equivalents_in_which_right_statement_changes(statement: Statement):
+    if not statement:
+        return []
+    right_statement = statement.right_term
+
+    right_equivalents = all_simple_equivalents(right_statement)
+
+    equivalent_statements = [(
+                             statement.copy(new_right_term=right_equivalent, law_used_in_creation=law_used_in_creation),
+                             law_used_in_creation)
+                             for right_equivalent, law_used_in_creation in right_equivalents]
+    return equivalent_statements
+
+
+def all_one_step_equivalents_of(statement: Statement):
+    if statement is None:
+        return []
+    # get the simple equivalents
+    simple_equivalents = all_simple_equivalents(statement)
+
+    # base case is where statement is an atom, tautology or contradiction
+    # return just the simple equivalents
+    if Util.is_atom(statement) or Util.is_general_tautology(statement) or Util.is_general_contradiction(statement):
+        return simple_equivalents
+
+    # otherwise it is a more complex statement that cone have complex equivalents as well as simple equivalents
+    # complex equivalents are where everything is the same except
+
+    equivs_in_which_left_term_changes = equivalents_in_which_left_statement_changes(statement)
+    equivs_in_which_right_term_changes = equivalents_in_which_right_statement_changes(statement)
+
+    return simple_equivalents + equivs_in_which_left_term_changes + equivs_in_which_right_term_changes
+
+
+ALL_EQUIVALENCE_LAWS = LawOfEquivalence.__subclasses__()
+
+p = Create.atom(symbol='p')
+q = Create.atom(symbol='q')
+r = Create.atom(symbol='r')
+
+# general use negations
+not_p = Create.negation(p)
+not_q = Create.negation(q)
+not_r = Create.negation(r)
+
+# general use conjunctions
+p_and_q = Create.conjunction(p, q)
+q_and_p = Create.conjunction(q, p)
+q_and_r = Create.conjunction(q, r)
+
+# general use disjunctions
+p_or_q = Create.disjunction(p, q)
+q_or_p = Create.disjunction(q, p)
+q_or_r = Create.disjunction(q, r)
+
+# for de morgans tests
+not_of_p_and_q = Create.negation(p_and_q)
+not_p_or_not_q = Create.disjunction(not_p, not_q)
+
+not_of_p_or_q = Create.negation(p_or_q)
+not_p_and_not_q = Create.conjunction(not_p, not_q)
+
+# for associative law
+
+p_or_q_equivs = all_one_step_equivalents_of(p_or_q)
+p_and_p_or_q = Create.conjunction(p, p_or_q)
+p_and_p_or_q_equivs = all_one_step_equivalents_of(p_and_p_or_q)
