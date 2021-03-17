@@ -125,6 +125,7 @@ class TestLawsOfEquivalence(unittest.TestCase):
 
         self.assertTrue(DoubleNegativeLaw.eligible(not_not_p))
 
+
     def test_idempotent_law(self):
         p_and_p = Create.conjunction(self.p, self.p)
         self.assertEqual(IdempotentLaw.apply(p_and_p), self.p)
@@ -186,6 +187,8 @@ class TestLawsOfEquivalence(unittest.TestCase):
     def test_find_all_eligible_laws(self):
         pass
 
+    def test_left_term_change_thing(self):
+        self.assertEqual(equivalents_in_which_left_statement_changes(not_p), [])
 
 if __name__ == '__main__':
     unittest.main()

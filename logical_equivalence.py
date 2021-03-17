@@ -40,7 +40,7 @@ def is_tautology_or_contradiction(statement):
 
 
 def is_negation(statement):
-    if statement.connective is ValueFunctions.negation:
+    if statement.connective == ValueFunctions.negation:
         return True
     return False
 
@@ -81,6 +81,7 @@ class CommutativeLaw(LawOfEquivalence):
 
 class AssociativeLaw(LawOfEquivalence):
     short_name = 'Assoc.'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_junction(statement):
@@ -103,6 +104,7 @@ class AssociativeLaw(LawOfEquivalence):
 
 class ReverseAssociativeLaw(LawOfEquivalence):
     short_name = 'Rev. Assoc.'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_junction(statement):
@@ -126,6 +128,7 @@ class ReverseAssociativeLaw(LawOfEquivalence):
 
 class DistributiveLaw(LawOfEquivalence):
     short_name = 'Distr.'
+
     @staticmethod
     def eligible(statement: Statement):
         """ Returns the eligibility of statement for application of the Distributive Law. p ∧ (q ∨ r) """
@@ -167,6 +170,7 @@ class IdentityLaw(LawOfEquivalence):
 
 class ReverseDistributiveLaw(LawOfEquivalence):
     short_name = 'Rev. Distr.'
+
     @staticmethod
     def eligible(statement: Statement):
         """
@@ -192,9 +196,10 @@ class ReverseDistributiveLaw(LawOfEquivalence):
 
 class NegationLaw(LawOfEquivalence):
     short_name = 'Neg.'
+
     @staticmethod
     def eligible(statement: Statement):
-        if is_junction(statement) and statement.left_term == statement.right_term.left_term and\
+        if is_junction(statement) and statement.left_term == statement.right_term.left_term and \
                 is_negation(statement.right_term):
             return True
         return False
@@ -209,6 +214,7 @@ class NegationLaw(LawOfEquivalence):
 
 class DoubleNegativeLaw(LawOfEquivalence):
     short_name = 'Doub. Neg.'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_negation(statement) and is_negation(statement.left_term):
@@ -224,20 +230,24 @@ class ReverseDoubleNegativeLaw(LawOfEquivalence):
     """ Gives ~(~(p)) from p. Likely unneeded."""
 
     short_name = 'Rev. Doub. Neg.'
+
     @staticmethod
     def eligible(statement: Statement):
+        return False
         if not is_negation(statement):
-            # everything except negations are eligible
             return True
         return False
 
     @staticmethod
     def apply(statement: Statement):
-        return Statement(ValueFunctions.negation, Statement(ValueFunctions.negation, statement))
+        result = Create.negation(Create.negation(statement))
+        symbol = result.symbol
+        return result
 
 
 class IdempotentLaw(LawOfEquivalence):
     short_name = 'Idem.'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_junction(statement) and statement.left_term == statement.right_term:
@@ -251,6 +261,7 @@ class IdempotentLaw(LawOfEquivalence):
 
 class UniversalBoundLaw(LawOfEquivalence):
     short_name = 'Uni. Boun.'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_junction(statement) and is_tautology_or_contradiction(statement.right_term):
@@ -267,6 +278,7 @@ class UniversalBoundLaw(LawOfEquivalence):
 
 class DeMorgansLaw(LawOfEquivalence):
     short_name = 'De Morg.'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_negation(statement) and is_junction(statement.left_term):
@@ -307,6 +319,7 @@ class ReverseDeMorgansLaw(LawOfEquivalence):
 
 class AbsorptionLaw(LawOfEquivalence):
     short_name = 'Abs'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_junction(statement):
@@ -328,6 +341,7 @@ class AbsorptionLaw(LawOfEquivalence):
 
 class ContradictionNegationLaw(LawOfEquivalence):
     short_name = 'Contr. Neg.'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_negation(statement) and statement.left_term == CONTRADICTION:
@@ -341,6 +355,7 @@ class ContradictionNegationLaw(LawOfEquivalence):
 
 class TautologyNegationLaw(LawOfEquivalence):
     short_name = 'Taut. Neg.'
+
     @staticmethod
     def eligible(statement: Statement):
         if is_negation(statement) and statement.left_term == TAUTOLOGY:
@@ -363,6 +378,8 @@ def all_simple_equivalents(statement: Statement):
 def equivalents_in_which_left_statement_changes(statement: Statement):
     if not statement:
         return []
+    if is_negation(statement) and statement.left_term.is_atom:
+        return []
 
     left_statement = statement.left_term
 
@@ -383,9 +400,9 @@ def equivalents_in_which_right_statement_changes(statement: Statement):
     right_equivalents = all_simple_equivalents(right_statement)
 
     equivalent_statements = [(
-                             statement.copy(new_right_term=right_equivalent, law_used_in_creation=law_used_in_creation),
-                             law_used_in_creation)
-                             for right_equivalent, law_used_in_creation in right_equivalents]
+        statement.copy(new_right_term=right_equivalent, law_used_in_creation=law_used_in_creation),
+        law_used_in_creation)
+        for right_equivalent, law_used_in_creation in right_equivalents]
     return equivalent_statements
 
 
