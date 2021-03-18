@@ -1,5 +1,6 @@
 from logical_statements import Create
 import logical_equivalence as log_eq
+import pygraphviz as pgv
 
 ## TEST VARS
 
@@ -42,7 +43,7 @@ class Node:
         self._equivalent_statements_and_laws_used = None
 
     @property
-    def equivalent_statements_and_laws_use(self):
+    def equivalent_statements_and_laws_used(self):
         if not self._equivalent_statements_and_laws_used:
             statement_law_pairs = log_eq.all_one_step_equivalents_of(self.statement)
             self._equivalent_statements_and_laws_used = statement_law_pairs
@@ -51,14 +52,16 @@ class Node:
     @property
     def adjacent_nodes(self):
         if not self._adjacent_nodes:
-            adjacent_nodes = [Node(stmt) for stmt, law in self.equivalent_statements_and_laws_use]
+            adjacent_nodes = [Node(stmt) for stmt, law in self.equivalent_statements_and_laws_used]
             self._adjacent_nodes = adjacent_nodes
         return self._adjacent_nodes
 
     @property
     def get_edges(self):
-        edges = [Edge(self, Node(adj_stmt), law_used) for adj_stmt, law_used in self.equivalent_statements_and_laws_used]
-        return edges
+        if not self._edges:
+            self._edges = [Edge(self, Node(adj_stmt), law_used) for adj_stmt, law_used in
+                           self.equivalent_statements_and_laws_used]
+        return self._edges
 
     def __repr__(self):
         return self.name
@@ -76,7 +79,53 @@ class Edge:
         self.law = law
 
 
-def equivalence_graph_search(source_statement, searches: int = 5):
+class EquivalenceGraphSearch:
+    def __init__(self, source_statement, search_limit=20):
+        self.source_statement = source_statement
+        self.search_limit = search_limit
+
+        self._nodes = None
+        self._edges = None
+
+        self._pgz_G = None
+
+
+    @property
+    def nodes(self):
+        if not self._nodes:
+            self._nodes = explore_and_find_all_nodes_from(self.source_statement, self.search_limit)
+        return self._nodes
+
+    @property
+    def edges(self):
+        if not self._edges:
+            edges = []
+            for node in self.nodes:
+                edges.extend(node.get_edges)
+            self._edges = edges
+        return self._edges
+
+
+    @property
+    def pgz_G(self):
+        if not self._pgz_G:
+            self._pgz_G = self.to_pgz_G()
+        return self._pgz_G
+
+    def to_svg(self, filename):
+        self.pgz_G.layout(prog='dot')
+        self.pgz_G.draw(filename, format='svg')
+
+    def to_pgz_G(self):
+        G = pgv.AGraph()
+        for edge in self.edges:
+            G.add_node(edge.n1.name, statement=edge.n1.statement)
+            G.add_node(edge.n2.name, statement=edge.n2.statement)
+            G.add_edge(edge.n1.name, edge.n2.name, law=edge.law, law_name=edge.law.short_name)
+        G.layout(prog='dot')
+        return G
+
+def explore_and_find_all_nodes_from(source_statement, searches: int = 20):
     source_node = Node(source_statement)
     all_nodes = [source_node]
 
@@ -101,5 +150,7 @@ def equivalence_graph_search(source_statement, searches: int = 5):
 
     return all_nodes
 
-n = equivalence_graph_search(Create.conjunction(p, not_of_p_or_q))
-a = 1
+test_statement = Create.conjunction(p, not_of_p_or_q)
+n = explore_and_find_all_nodes_from(test_statement)
+
+G = EquivalenceGraphSearch(test_statement)
