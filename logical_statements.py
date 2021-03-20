@@ -2,9 +2,10 @@ import itertools
 from abc import ABC, abstractmethod, abstractproperty
 from collections import Callable
 from typing import List, Tuple, Union
+import pandas as pd
 
-import networkx as nx
-import matplotlib as plt
+#import networkx as nx
+#import matplotlib as plt
 
 AND_SYMBOL = '∧'
 NOT_SYMBOL = '~'
@@ -80,17 +81,34 @@ class Util:
         return sorted(unique_atomic_symbols)
 
     @staticmethod
-    def truth_table_of(statement):
+    def simple_truth_table_of(statement):
         unique_atomic_symbols = Util.unique_atomic_symbols_in(statement)
         combinations_of_tf_for_all_symbols = Util.permutations_of_atom_values(unique_atomic_symbols)
 
         truth_table = []
+
         for tf_combination in combinations_of_tf_for_all_symbols:
             atom_space = dict(zip(unique_atomic_symbols, tf_combination))
             statement_value = statement.value(atom_space)
             truth_table.append((atom_space, statement_value))
 
         return truth_table
+
+    @staticmethod
+    def truth_table_of(statement: 'Statement'):
+        unique_atomic_symbols = Util.unique_atomic_symbols_in(statement)
+        combinations_of_tf_for_all_symbols = Util.permutations_of_atom_values(unique_atomic_symbols)
+
+        records = []
+        for tf_combination in combinations_of_tf_for_all_symbols:
+            atom_space = dict(zip(unique_atomic_symbols, tf_combination))  # create the atom space
+            statement_value = statement.value(atom_space)  # get the consequent value
+            atom_space['result_value'] = statement_value  # add the value to the atom space
+            records.append(atom_space)  # add the atom space with value to the records list
+
+        truth_table = pd.DataFrame.from_records(records)  # create the dataframe
+        return truth_table
+
 
     @staticmethod
     def comprised_atomic_symbols(statement: 'Statement'):
@@ -199,6 +217,7 @@ class Statement:
         self.law_used_in_creation = law_used_in_creation
 
         self._truth_table = None
+        self.truth_table = Util.truth_table_of(self)
 
     # GETTERS of private attributes
     @property
@@ -217,12 +236,12 @@ class Statement:
     def value(self, atom_space: dict) -> bool:
         return self._connective(self, atom_space)
 
-    @property
-    def truth_table(self):
-        if self._truth_table:
-            return self._truth_table
-        else:
-            self._truth_table = Util.truth_table_of(self)
+    # @property
+    # def truth_table(self):
+    #     if self._truth_table:
+    #         return self._truth_table
+    #     else:
+    #         self._truth_table = Util.truth_table_of(self)
 
     # MISC
     @property
@@ -272,3 +291,9 @@ class Create:
     @staticmethod
     def negation(left_term):
         return Statement(ValueFunctions.negation, left_term)
+
+
+class TruthTable:
+    def __init__(self, statement):
+        unique_atomic_symbols = Util.unique_atomic_symbols_in(statement)
+        combinations_of_tf_for_all_symbols = Util.permutations_of_atom_values(unique_atomic_symbols)

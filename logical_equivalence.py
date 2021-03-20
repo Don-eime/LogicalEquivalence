@@ -103,7 +103,7 @@ class AssociativeLaw(LawOfEquivalence):
 
 
 class ReverseAssociativeLaw(LawOfEquivalence):
-    short_name = 'Rev. Assoc.'
+    short_name = 'Assoc.'
 
     @staticmethod
     def eligible(statement: Statement):
@@ -157,8 +157,9 @@ class IdentityLaw(LawOfEquivalence):
 
     @staticmethod
     def eligible(statement: Statement):
-        if is_junction(statement) and statement.right_term in [TAUTOLOGY, CONTRADICTION]:
-            # the statement is a junction and the second statement is either tautology or contradiction
+        if statement.connective == ValueFunctions.conjunction and statement.right_term == TAUTOLOGY:
+            return True
+        elif statement.connective == ValueFunctions.disjunction and statement.right_term == CONTRADICTION:
             return True
         else:
             return False
@@ -169,7 +170,7 @@ class IdentityLaw(LawOfEquivalence):
 
 
 class ReverseDistributiveLaw(LawOfEquivalence):
-    short_name = 'Rev. Distr.'
+    short_name = 'Distr.'
 
     @staticmethod
     def eligible(statement: Statement):
@@ -229,7 +230,7 @@ class DoubleNegativeLaw(LawOfEquivalence):
 class ReverseDoubleNegativeLaw(LawOfEquivalence):
     """ Gives ~(~(p)) from p. Likely unneeded."""
 
-    short_name = 'Rev. Doub. Neg.'
+    short_name = 'Doub. Neg.'
 
     @staticmethod
     def eligible(statement: Statement):
@@ -264,7 +265,9 @@ class UniversalBoundLaw(LawOfEquivalence):
 
     @staticmethod
     def eligible(statement: Statement):
-        if is_junction(statement) and is_tautology_or_contradiction(statement.right_term):
+        if statement.connective == ValueFunctions.disjunction and statement.right_term == TAUTOLOGY:
+            return True
+        elif statement.connective == ValueFunctions.conjunction and statement.right_term == CONTRADICTION:
             return True
         return False
 
@@ -298,7 +301,7 @@ class DeMorgansLaw(LawOfEquivalence):
 
 
 class ReverseDeMorgansLaw(LawOfEquivalence):
-    short_name = 'Rev. De Morg.'
+    short_name = 'De Morg.'
 
     @staticmethod
     def eligible(statement: Statement):
@@ -372,7 +375,12 @@ def all_simple_equivalents(statement: Statement):
         return []
     eligible_laws = [law for law in ALL_EQUIVALENCE_LAWS if law.eligible(statement)]
 
-    return [(law.apply(statement), law) for law in eligible_laws]
+    result_statements = [(law.apply(statement), law) for law in eligible_laws]
+    #
+    # for result_stmt, law in result_statements:
+    #     if result_stmt.truth_table != statement.truth_table and law != AbsorptionLaw:
+    #         print(f'Not exactly == tts: {law=} allowed {statement.symbol=}')
+    return result_statements
 
 
 def equivalents_in_which_left_statement_changes(statement: Statement):
@@ -389,6 +397,10 @@ def equivalents_in_which_left_statement_changes(statement: Statement):
         (statement.copy(new_left_term=left_equivalent, law_used_in_creation=law_used_in_creation), law_used_in_creation)
         for left_equivalent, law_used_in_creation in left_equivalents]
 
+    # for result_stmt, law in equivalent_statements:
+    #     if result_stmt.truth_table != statement.truth_table:
+    #         print(f'Not exactly == tts: {law=} allowed {statement.symbol=}')
+    #
     return equivalent_statements
 
 
@@ -403,6 +415,12 @@ def equivalents_in_which_right_statement_changes(statement: Statement):
         statement.copy(new_right_term=right_equivalent, law_used_in_creation=law_used_in_creation),
         law_used_in_creation)
         for right_equivalent, law_used_in_creation in right_equivalents]
+
+    # for result_stmt, law in equivalent_statements:
+    #     if result_stmt.truth_table != statement.truth_table:
+    #         print(f'Not exactly == tts: {law=} allowed {statement.symbol=}')
+    # 
+
     return equivalent_statements
 
 
@@ -459,3 +477,13 @@ not_p_and_not_q = Create.conjunction(not_p, not_q)
 p_or_q_equivs = all_one_step_equivalents_of(p_or_q)
 p_and_p_or_q = Create.conjunction(p, p_or_q)
 p_and_p_or_q_equivs = all_one_step_equivalents_of(p_and_p_or_q)
+
+
+
+
+
+
+
+
+
+
