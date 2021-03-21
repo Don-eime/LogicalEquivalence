@@ -2,6 +2,8 @@ import time
 
 from logical_statements import Create, ValueFunctions
 import logical_equivalence as log_eq
+import pygraphviz as pgv
+
 
 #import pygraphviz as pgv
 

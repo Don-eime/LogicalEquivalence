@@ -476,7 +476,7 @@ not_p_and_not_q = Create.conjunction(not_p, not_q)
 
 p_or_q_equivs = all_one_step_equivalents_of(p_or_q)
 p_and_p_or_q = Create.conjunction(p, p_or_q)
-p_and_p_or_q_equivs = all_one_step_equivalents_of(p_and_p_or_q)
+# p_and_p_or_q_equivs = all_one_step_equivalents_of(p_and_p_or_q)
 
 
 
