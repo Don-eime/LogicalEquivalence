@@ -1,0 +1,39 @@
+#%%
+from statement_atom_expression import *
+import networkx as nx
+import matplotlib as plt
+
+p = Atom('p')
+q = Atom('q')
+
+not_q = Create.negation(q)
+not_q_and_q = Create.conjunction(not_q, q)
+
+to_explore = Create.disjunction(p, not_q_and_q)
+
+
+def find_equivalence_nodes_from(statement) -> Tuple[List[Tuple[Statement, Statement]], List[Callable]]:
+    edge_pairs = []
+    laws_used = []
+    for equivalence_law in all_eligibile_laws_of(statement):
+        equivalent_statement = equivalence_law.apply(statement)
+        edge_pairs.append((statement, equivalent_statement))
+        laws_used.append(equivalence_law)
+
+    return zip(edge_pairs, laws_used)
+
+
+def search_for_path_between(first_statement, second_statement):
+    layers = 5
+
+    G = nx.Graph()
+
+    nodes_to_search = [first_statement]
+    new_nodes = []
+    for current_node in nodes_to_search:
+        new_node_edge_pairs = find_equivalence_nodes_from(current_node)
+
+        for edge_pair, law_used in new_node_edge_pairs:
+            G.add_edge(edge_pair, object=law_used)
+
+    return G
